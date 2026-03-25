@@ -81,7 +81,7 @@
         </div>
     </div>
 
-    <!-- Loading Spinner (แก้ไข ID ให้ตรงกับ Javascript) -->
+    <!-- Loading Spinner -->
     <div id="loadingSpinner" class="flex flex-col items-center justify-center py-20 hidden">
         <div class="loader"></div>
         <p class="mt-4 text-brandBlue font-medium">กำลังโหลดข้อมูล...</p>
@@ -121,7 +121,7 @@
         </div>
     </div>
 
-    <!-- Modal Form: สมัครและดูรายชื่อชุมนุม (สำหรับนักเรียน) -->
+    <!-- Modal Form: สมัครและดูรายชื่อชุมนุม (สำหรับนักเรียน และครูเพื่อจัดการ) -->
     <div id="studentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
             <div class="bg-brandBlue p-4 flex justify-between items-center">
@@ -135,7 +135,7 @@
                     <p class="text-gray-700 mt-2"><i class="fas fa-info-circle text-brandPink w-5"></i> <span class="font-bold">สถานะ:</span> <span id="studentModalStatus"></span></p>
                 </div>
 
-                <!-- ส่วนฟอร์มสมัคร -->
+                <!-- ส่วนฟอร์มสมัคร (จะถูกซ่อนถ้าเต็ม หรือถ้าอยู่ในโหมดแอดมิน) -->
                 <div id="joinSection" class="bg-blue-50 p-4 rounded-xl mb-6 border border-blue-100">
                     <h3 class="font-bold text-brandBlue mb-3">ลงทะเบียนเข้าชุมนุม</h3>
                     <div class="flex flex-col sm:flex-row gap-2">
@@ -160,15 +160,16 @@
 
     <!-- Script Logic -->
     <script>
-        // 🛑 อัปเดต URL ของ Google Apps Script ใหม่แล้ว
+        // 🛑 อัปเดต URL ของ Google Apps Script
         const GAS_URL = "https://script.google.com/macros/s/AKfycby_fxPWW_UxsRDxzSgnJg81ydujTx1Yu7dvcNxPasHFxGQcvh6kV7iMA4MsYcAaRD_p/exec"; 
-        const ADMIN_PASSWORD = "112233";
+        const ADMIN_PASSWORD = "123321";
 
         let clubsData = [];
+        let displayOrder = []; // ตัวแปรสำหรับเก็บลำดับสุ่ม 
         let isAdmin = false;
         let currentViewClubId = null;
 
-        // ข้อมูลจำลองสำหรับแสดงตัวอย่าง (กรณีไม่มี GAS_URL)
+        // ข้อมูลจำลองสำหรับแสดงตัวอย่าง
         const mockData = [
             { id: "1", name: "ชุมนุมดนตรีสากล", teachers: "ครูวิทวัส, ครูปรีชา", quota: 30, enrolled: 2, students: [{name: "ด.ช.สมชาย รักเรียน", className: "ม.1/1"}, {name: "ด.ญ.สมหญิง ใจดี", className: "ม.2/3"}] },
             { id: "2", name: "ชุมนุม E-Sports", teachers: "ครูเอกภพ", quota: 20, enrolled: 2, students: [{name: "ด.ช.เกมเมอร์ ตัวตึง", className: "ม.3/2"}, {name: "ด.ช.เทพทรู เติมหนัก", className: "ม.4/1"}] },
@@ -187,15 +188,42 @@
             document.getElementById('lastUpdateText').innerHTML = `<i class="fas fa-sync-alt"></i> อัปเดตข้อมูลล่าสุด: ${timeStr} น.`;
         }
 
+        // ฟังก์ชันสุ่มลำดับ Array (Fisher-Yates Shuffle)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // ฟังก์ชันจัดการข้อมูลและแสดงผล (รักษาสถานะการสุ่มไว้)
+        function processAndRenderData(newData) {
+            if (displayOrder.length === 0 || displayOrder.length !== newData.length) {
+                // สุ่มลำดับใหม่ครั้งแรก หรือเมื่อจำนวนชุมนุมเปลี่ยนแปลง
+                shuffleArray(newData);
+                displayOrder = newData.map(c => c.id);
+                clubsData = newData;
+            } else {
+                // เรียงตามลำดับที่สุ่มไว้ตอนแรก
+                clubsData = newData.sort((a, b) => {
+                    let indexA = displayOrder.indexOf(a.id);
+                    let indexB = displayOrder.indexOf(b.id);
+                    if (indexA === -1) indexA = 9999;
+                    if (indexB === -1) indexB = 9999;
+                    return indexA - indexB;
+                });
+            }
+            renderClubs();
+            updateTimestamp();
+        }
+
         async function silentFetchClubs() {
             if (!GAS_URL) return; // ไม่ทำงานโหมดจำลอง
             try {
                 const response = await fetch(`${GAS_URL}?action=read`);
                 const result = await response.json();
                 if (result.status === 'success') {
-                    clubsData = result.data;
-                    renderClubs(); // อัปเดตหน้าการ์ด
-                    updateTimestamp(); // อัปเดตเวลาแสดงผล
+                    processAndRenderData(result.data); 
 
                     // หากผู้ใช้กำลังเปิดหน้าต่างชุมนุมค้างไว้ ให้อัปเดตข้อมูลรายชื่อและยอดข้างในด้วย
                     if (currentViewClubId && !document.getElementById('studentModal').classList.contains('hidden')) {
@@ -210,7 +238,7 @@
 
         function showLoading(show) {
             const spinner = document.getElementById('loadingSpinner');
-            if (!spinner) return; // ป้องกัน Error หากหา Element ไม่เจอ
+            if (!spinner) return; 
             
             if (show) {
                 spinner.classList.remove('hidden');
@@ -223,9 +251,8 @@
             showLoading(true);
             if (!GAS_URL) {
                 setTimeout(() => {
-                    clubsData = JSON.parse(JSON.stringify(mockData)); // Clone mock
-                    renderClubs();
-                    updateTimestamp();
+                    const mockCopy = JSON.parse(JSON.stringify(mockData)); // Clone mock
+                    processAndRenderData(mockCopy);
                     showLoading(false);
                 }, 800);
                 return;
@@ -233,14 +260,12 @@
 
             try {
                 const response = await fetch(`${GAS_URL}?action=read`);
-                const text = await response.text(); // อ่านเป็น Text ดิบก่อนเพื่อดักจับ Error จาก Google
+                const text = await response.text(); 
                 
                 try {
                     const result = JSON.parse(text);
                     if (result.status === 'success') {
-                        clubsData = result.data;
-                        renderClubs();
-                        updateTimestamp();
+                        processAndRenderData(result.data);
                     } else {
                         alert('เกิดข้อผิดพลาดในการดึงข้อมูล: ' + result.message);
                     }
@@ -252,7 +277,6 @@
                 console.error('Network Error:', error);
                 alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบอินเทอร์เน็ต');
             } finally {
-                // สำคัญมาก: ปิดหน้าโหลดเสมอ ไม่ว่าจะดึงข้อมูลสำเร็จหรือพังก็ตาม
                 showLoading(false); 
             }
         }
@@ -278,22 +302,23 @@
                 const statusText = isFull ? 'text-red-600' : 'text-green-600';
                 const statusLabel = isFull ? 'เต็ม' : 'ว่าง';
                 
-                // สำหรับนักเรียน ให้คลิกการ์ดได้
-                const cardInteractiveClass = !isAdmin ? 'cursor-pointer hover:scale-[1.02] transform transition duration-300' : '';
+                // ให้สามารถคลิกได้เสมอเพื่อดูรายชื่อ (ถ้าเป็นนักเรียนสมัคร ถ้าเป็นครูดูเฉยๆ หรือลบรายชื่อ)
+                const cardInteractiveClass = 'cursor-pointer hover:scale-[1.02] transform transition duration-300';
 
                 let adminButtons = '';
                 if (isAdmin) {
+                    // ใช้ event.stopPropagation() เพื่อไม่ให้คลิกปุ่มแอดมินแล้วเด้งหน้าจอรายชื่อขึ้นมา
                     adminButtons = `
                         <div class="mt-4 pt-4 border-t border-gray-200 flex justify-end gap-2">
-                            <button onclick="exportClubToCSV('${club.id}')" class="text-sm px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition" title="ดาวน์โหลดรายชื่อ"><i class="fas fa-download"></i></button>
-                            <button onclick="editClub('${club.id}')" class="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"><i class="fas fa-edit"></i> แก้ไข</button>
-                            <button onclick="deleteClub('${club.id}')" class="text-sm px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition"><i class="fas fa-trash"></i> ลบ</button>
+                            <button onclick="event.stopPropagation(); exportClubToCSV('${club.id}')" class="text-sm px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition" title="ดาวน์โหลดรายชื่อ"><i class="fas fa-download"></i></button>
+                            <button onclick="event.stopPropagation(); editClub('${club.id}')" class="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"><i class="fas fa-edit"></i> แก้ไข</button>
+                            <button onclick="event.stopPropagation(); deleteClub('${club.id}')" class="text-sm px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition"><i class="fas fa-trash"></i> ลบ</button>
                         </div>
                     `;
                 }
 
                 const cardHTML = `
-                    <div onclick="if(!isAdmin) openStudentModal('${club.id}')" class="rounded-2xl border-l-8 ${borderColor} ${bgColor} shadow-md hover:shadow-lg p-6 flex flex-col justify-between ${cardInteractiveClass}">
+                    <div onclick="openStudentModal('${club.id}')" class="rounded-2xl border-l-8 ${borderColor} ${bgColor} shadow-md hover:shadow-lg p-6 flex flex-col justify-between ${cardInteractiveClass}">
                         <div>
                             <h2 class="text-xl font-bold text-gray-800 mb-2">${club.name}</h2>
                             <p class="text-gray-600 text-sm mb-1 truncate"><i class="fas fa-chalkboard-teacher text-brandBlue w-5"></i> ครู: <span class="font-medium">${club.teachers}</span></p>
@@ -313,7 +338,7 @@
             });
         }
 
-        // --- ส่วนการจัดการโหมดนักเรียน (Student View) ---
+        // --- ส่วนการจัดการโหมดนักเรียนและดูรายชื่อชุมนุม ---
         function openStudentModal(id) {
             const club = clubsData.find(c => c.id === id);
             if (!club) return;
@@ -352,10 +377,19 @@
                     const name = typeof std === 'object' ? std.name : std;
                     const className = typeof std === 'object' ? std.className : '-';
                     
+                    // ปุ่มลบนักเรียน จะแสดงเฉพาะตอนที่อยู่ในโหมดจัดการ (isAdmin = true)
+                    let removeBtnHTML = '';
+                    if (isAdmin) {
+                        removeBtnHTML = `<button onclick="removeStudent('${club.id}', '${name}')" class="ml-3 px-2 py-0.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-md transition duration-200 text-sm" title="ลบรายชื่อนี้"><i class="fas fa-times"></i> ลบ</button>`;
+                    }
+                    
                     listContainer.innerHTML += `
                         <li class="border-b border-gray-100 pb-2 mt-1">
                             <div class="flex justify-between items-center w-full">
-                                <span>${name}</span>
+                                <div class="flex items-center">
+                                    <span>${name}</span>
+                                    ${removeBtnHTML}
+                                </div>
                                 <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium whitespace-nowrap">ชั้น ${className}</span>
                             </div>
                         </li>`;
@@ -366,9 +400,9 @@
                 document.getElementById('studentCount').innerText = '0';
             }
 
-            // ซ่อน/แสดง ฟอร์มสมัคร
+            // ซ่อนฟอร์มสมัคร หากชุมนุมเต็ม หรือหากล็อกอินเป็นครูอยู่ (ป้องกันครูเผลอสมัคร)
             const joinSection = document.getElementById('joinSection');
-            if (isFull) {
+            if (isFull || isAdmin) {
                 joinSection.classList.add('hidden');
             } else {
                 joinSection.classList.remove('hidden');
@@ -389,15 +423,19 @@
                 return;
             }
 
-            // เก็บค่า Target Club ID ไว้ก่อน เพราะคำสั่ง closeStudentModal จะรีเซ็ตค่าเป็น null
             const targetClubId = currentViewClubId;
 
             // ในโหมดจำลอง (Mock Data)
             if (!GAS_URL) {
-                // เช็คว่าชื่อซ้ำกับชุมนุมไหนเลยหรือไม่
-                const alreadyJoined = clubsData.some(c => c.students && c.students.some(s => s.name === studentName));
+                const alreadyJoined = clubsData.some(c => c.students && c.students.some(s => {
+                    const sName = typeof s === 'object' ? s.name : s;
+                    return sName === studentName;
+                }));
                 if (alreadyJoined) {
-                    const joinedClub = clubsData.find(c => c.students && c.students.some(s => s.name === studentName));
+                    const joinedClub = clubsData.find(c => c.students && c.students.some(s => {
+                        const sName = typeof s === 'object' ? s.name : s;
+                        return sName === studentName;
+                    }));
                     alert(`ท่านได้ลงทะเบียนชุมนุม "${joinedClub.name}" ไปแล้ว`);
                     return;
                 }
@@ -418,15 +456,15 @@
             }
 
             // บันทึกจริง (GAS)
-            closeStudentModal(); // ปิดหน้าต่างได้ปลอดภัยแล้วเพราะเราเก็บ targetClubId ไว้แล้ว
+            closeStudentModal(); 
             showLoading(true);
 
             try {
                 const formData = new URLSearchParams();
                 formData.append('action', 'join');
-                formData.append('clubId', targetClubId); // ส่งค่า ID ที่เก็บไว้แทน
+                formData.append('clubId', targetClubId);
                 formData.append('studentName', studentName);
-                formData.append('studentClass', studentClass); // ส่งข้อมูล "ชั้น" ไปด้วย
+                formData.append('studentClass', studentClass); 
 
                 const response = await fetch(GAS_URL, {
                     method: 'POST',
@@ -436,7 +474,7 @@
 
                 if (result.status === 'success') {
                     alert(result.message);
-                    await fetchClubs(); // ดึงข้อมูลใหม่เพื่ออัปเดตหน้าจอ
+                    await fetchClubs(); 
                 } else {
                     alert('ไม่สามารถสมัครได้: ' + result.message);
                     showLoading(false);
@@ -444,6 +482,61 @@
             } catch (error) {
                 console.error('Error:', error);
                 alert('ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่');
+                showLoading(false);
+            }
+        }
+
+        // ฟังก์ชันลบนักเรียนรายบุคคล (สำหรับแอดมิน)
+        async function removeStudent(clubId, studentName) {
+            if (!confirm(`คุณแน่ใจหรือไม่ที่จะลบรายชื่อ "${studentName}" ออกจากชุมนุม?`)) return;
+
+            showLoading(true);
+
+            // โหมดจำลอง
+            if (!GAS_URL) {
+                setTimeout(() => {
+                    const club = clubsData.find(c => c.id === clubId);
+                    if (club) {
+                        club.students = club.students.filter(s => {
+                            const sName = typeof s === 'object' ? s.name : s;
+                            return sName !== studentName;
+                        });
+                        club.enrolled = club.students.length;
+                        renderClubs();
+                        refreshModalUI(club);
+                    }
+                    showLoading(false);
+                }, 500);
+                return;
+            }
+
+            // ส่งข้อมูลลบจริงไปที่ GAS
+            try {
+                const formData = new URLSearchParams();
+                formData.append('action', 'removeStudent'); // <- คุณต้องอัปเดตโค้ดใน Apps Script ให้รองรับ Action นี้นะครับ
+                formData.append('clubId', clubId);
+                formData.append('studentName', studentName);
+                formData.append('password', ADMIN_PASSWORD);
+
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    await fetchClubs(); // โหลดข้อมูลอัปเดตใหม่
+                    
+                    // อัปเดตข้อมูลข้างใน Modal (โดยไม่ต้องปิด)
+                    const updatedClub = clubsData.find(c => c.id === clubId);
+                    if (updatedClub) refreshModalUI(updatedClub);
+                } else {
+                    alert('เกิดข้อผิดพลาดในการลบรายชื่อ: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('ไม่สามารถเชื่อมต่อระบบได้');
+            } finally {
                 showLoading(false);
             }
         }
@@ -457,9 +550,13 @@
                 document.getElementById('exportAllBtn').classList.add('hidden');
                 document.getElementById('logoutBtn').classList.add('hidden');
                 document.getElementById('viewModeText').innerText = "คลิกที่การ์ดเพื่อดูรายชื่อหรือสมัครชุมนุม";
+                
+                // หากเปิดหน้าต่างค้างไว้อยู่ ให้ปิดซะ เพื่อรีเซ็ตมุมมอง
+                if(currentViewClubId) closeStudentModal(); 
+                
                 renderClubs();
             } else {
-                const pwd = prompt("กรุณาใส่รหัสผ่านเพื่อจัดการชุมนุม (112233):");
+                const pwd = prompt("กรุณาใส่รหัสผ่านเพื่อจัดการชุมนุม (123321):");
                 if (pwd === ADMIN_PASSWORD) {
                     isAdmin = true;
                     document.getElementById('adminLoginBtn').classList.add('hidden');
@@ -599,7 +696,6 @@
 
         // --- ส่วน Export เป็น CSV / Excel ---
         function downloadCSV(csvContent, filename) {
-            // ใส่ BOM (\uFEFF) เพื่อให้ Excel อ่านภาษาไทย (UTF-8) ได้ถูกต้อง
             const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
@@ -617,11 +713,9 @@
                 return;
             }
             
-            // สร้าง Workbook ใหม่
             const wb = XLSX.utils.book_new();
 
             clubsData.forEach(club => {
-                // เตรียมข้อมูลแถวและคอลัมน์สำหรับแต่ละชีต
                 const ws_data = [
                     ["ชื่อชุมนุม:", club.name],
                     ["ครูที่ปรึกษา:", club.teachers],
@@ -639,25 +733,18 @@
                     ws_data.push(["-", "ไม่มีผู้สมัคร", "-"]);
                 }
 
-                // สร้าง Worksheet จากข้อมูล
                 const ws = XLSX.utils.aoa_to_sheet(ws_data);
-                
-                // ปรับความกว้างคอลัมน์ให้สวยงาม (15, 30, 15)
                 ws['!cols'] = [{wch: 15}, {wch: 30}, {wch: 15}];
 
-                // ตั้งชื่อชีต (Excel จำกัดชื่อชีตไม่เกิน 31 ตัวอักษร และห้ามมีอักขระพิเศษบางตัว)
                 let safeSheetName = club.name.replace(/[\\/:*?"<>|\[\]]/g, '').substring(0, 31);
                 
-                // ป้องกันชื่อชีตซ้ำกัน (ถ้าตั้งชื่อชุมนุมยาวเกิน 31 ตัวอักษรแล้วโดนตัดจนซ้ำกัน)
                 if(wb.SheetNames.includes(safeSheetName)) {
                     safeSheetName = safeSheetName.substring(0, 27) + "_" + Math.floor(Math.random() * 100);
                 }
 
-                // เพิ่มชีตลงใน Workbook
                 XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
             });
 
-            // สร้างและดาวน์โหลดไฟล์ Excel
             XLSX.writeFile(wb, "รายชื่อชุมนุมทั้งหมด_2569.xlsx");
         }
 
@@ -679,7 +766,6 @@
                 csvContent += `-,"ไม่มีผู้สมัคร","-"\n`;
             }
 
-            // ตั้งชื่อไฟล์ลบอักขระพิเศษออก
             const safeFileName = club.name.replace(/[\\/:*?"<>|]/g, '');
             downloadCSV(csvContent, `รายชื่อชุมนุม_${safeFileName}.csv`);
         }
