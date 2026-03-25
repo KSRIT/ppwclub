@@ -62,12 +62,15 @@
             <div><i class="fas fa-info-circle text-brandBlue"></i> <span id="viewModeText">คลิกที่การ์ดเพื่อดูรายชื่อหรือสมัครชุมนุม</span></div>
             <span id="lastUpdateText" class="text-xs text-green-600 ml-5 mt-1 font-medium"><i class="fas fa-sync-alt"></i> อัปเดตข้อมูลล่าสุด: กำลังโหลด...</span>
         </div>
-        <div>
+        <div class="flex gap-2">
             <button id="adminLoginBtn" onclick="toggleAdminMode()" class="bg-brandBlue hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
                 <i class="fas fa-lock"></i> จัดการชุมนุม (สำหรับครู)
             </button>
             <button id="addClubBtn" onclick="openClubModal()" class="hidden bg-brandPink hover:bg-pink-600 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
                 <i class="fas fa-plus"></i> สร้างชุมนุมใหม่
+            </button>
+            <button id="logoutBtn" onclick="toggleAdminMode()" class="hidden bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
+                <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
             </button>
         </div>
     </div>
@@ -428,6 +431,7 @@
                 isAdmin = false;
                 document.getElementById('adminLoginBtn').classList.remove('hidden');
                 document.getElementById('addClubBtn').classList.add('hidden');
+                document.getElementById('logoutBtn').classList.add('hidden');
                 document.getElementById('viewModeText').innerText = "คลิกที่การ์ดเพื่อดูรายชื่อหรือสมัครชุมนุม";
                 renderClubs();
             } else {
@@ -436,6 +440,7 @@
                     isAdmin = true;
                     document.getElementById('adminLoginBtn').classList.add('hidden');
                     document.getElementById('addClubBtn').classList.remove('hidden');
+                    document.getElementById('logoutBtn').classList.remove('hidden');
                     document.getElementById('viewModeText').innerText = "โหมดจัดการข้อมูลชุมนุม (กำลังใช้งานในฐานะครู)";
                     renderClubs();
                 } else if (pwd !== null) {
