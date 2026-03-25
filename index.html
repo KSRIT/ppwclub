@@ -33,18 +33,22 @@
         .glass-effect { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #ec4899; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* ซ่อน scrollbar ใน Modal เพื่อความสวยงาม */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="min-h-screen pb-12">
 
     <!-- Header Section -->
     <header class="w-full bg-white shadow-sm pb-6">
-        <div class="max-w-6xl mx-auto px-4 pt-4">
+        <div class="max-w-6xl mx-auto px-4 pt-6 text-center">
+            <!-- ปรับขนาดโลโก้ให้เล็กลง พอดี และไม่ยืด -->
             <img src="https://pakprak.ac.th/wp-content/uploads/2021/10/logohomeArtboard-1-1536x392.png" 
                  alt="โลโก้โรงเรียนปากแพรกวิทยาคม" 
-                 class="w-full max-w-4xl mx-auto rounded-xl shadow-md object-cover h-24 md:h-40 lg:h-48 border-2 border-pink-100">
+                 class="w-full max-w-lg mx-auto rounded-xl shadow-sm object-contain bg-white h-20 md:h-28 border border-pink-100 p-2">
             
-            <h1 class="text-2xl md:text-3xl lg:text-4xl font-bold text-center mt-8 text-brandBlue drop-shadow-sm">
+            <h1 class="text-2xl md:text-3xl lg:text-4xl font-bold text-center mt-6 text-brandBlue drop-shadow-sm">
                 ระบบเลือกกิจกรรมชุมนุม ประจำปี 2569
                 <br>
                 <span class="text-brandPink text-xl md:text-2xl lg:text-3xl">โรงเรียนปากแพรกวิทยาคม</span>
@@ -55,13 +59,13 @@
     <!-- Controls Section -->
     <div class="max-w-6xl mx-auto px-4 mt-8 flex justify-between items-center">
         <div class="text-gray-600">
-            <i class="fas fa-info-circle text-brandBlue"></i> รายชื่อชุมนุมทั้งหมด
+            <i class="fas fa-info-circle text-brandBlue"></i> <span id="viewModeText">คลิกที่การ์ดเพื่อดูรายชื่อหรือสมัครชุมนุม</span>
         </div>
         <div>
             <button id="adminLoginBtn" onclick="toggleAdminMode()" class="bg-brandBlue hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
                 <i class="fas fa-lock"></i> จัดการชุมนุม (สำหรับครู)
             </button>
-            <button id="addClubBtn" onclick="openModal()" class="hidden bg-brandPink hover:bg-pink-600 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
+            <button id="addClubBtn" onclick="openClubModal()" class="hidden bg-brandPink hover:bg-pink-600 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
                 <i class="fas fa-plus"></i> สร้างชุมนุมใหม่
             </button>
         </div>
@@ -78,13 +82,13 @@
         <!-- Cards will be injected here via JS -->
     </div>
 
-    <!-- Modal Form (Create / Edit) -->
+    <!-- Modal Form: สร้าง/แก้ไขชุมนุม (สำหรับแอดมิน) -->
     <div id="clubModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
             <div class="bg-gradient-to-r from-brandBlue to-brandPink p-4">
                 <h2 id="modalTitle" class="text-xl font-bold text-white"><i class="fas fa-edit"></i> สร้างชุมนุมใหม่</h2>
             </div>
-            <form id="clubForm" onsubmit="handleFormSubmit(event)" class="p-6">
+            <form id="clubForm" onsubmit="handleClubSubmit(event)" class="p-6">
                 <input type="hidden" id="clubId">
                 <div class="mb-4">
                     <label class="block text-gray-700 text-sm font-bold mb-2">ชื่อชุมนุม</label>
@@ -98,41 +102,69 @@
                     <label class="block text-gray-700 text-sm font-bold mb-2">จำนวนโควต้าที่รับ (คน)</label>
                     <input type="number" id="clubQuota" required min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brandPink focus:ring-1 focus:ring-brandPink">
                 </div>
-                <!-- สำหรับการจำลองเพิ่มยอดนักเรียน (ทดสอบระบบ) -->
-                <div class="mb-6 hidden" id="testEnrollmentDiv">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">ทดสอบ: จำนวนนักเรียนที่สมัครแล้ว</label>
-                    <input type="number" id="clubEnrolled" min="0" value="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                </div>
                 
                 <div class="flex justify-end gap-3">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">ยกเลิก</button>
+                    <button type="button" onclick="closeClubModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">ยกเลิก</button>
                     <button type="submit" class="px-4 py-2 bg-brandPink text-white rounded-lg hover:bg-pink-600 transition shadow">บันทึกข้อมูล</button>
                 </div>
             </form>
         </div>
     </div>
 
+    <!-- Modal Form: สมัครและดูรายชื่อชุมนุม (สำหรับนักเรียน) -->
+    <div id="studentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
+            <div class="bg-brandBlue p-4 flex justify-between items-center">
+                <h2 id="studentModalTitle" class="text-xl font-bold text-white">รายละเอียดชุมนุม</h2>
+                <button onclick="closeStudentModal()" class="text-white hover:text-gray-200 transition"><i class="fas fa-times text-2xl"></i></button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto no-scrollbar flex-1">
+                <div class="mb-4 border-b pb-4">
+                    <p class="text-gray-700"><i class="fas fa-chalkboard-teacher text-brandBlue w-5"></i> <span class="font-bold">ครูผู้ดูแล:</span> <span id="studentModalTeachers"></span></p>
+                    <p class="text-gray-700 mt-2"><i class="fas fa-info-circle text-brandPink w-5"></i> <span class="font-bold">สถานะ:</span> <span id="studentModalStatus"></span></p>
+                </div>
+
+                <!-- ส่วนฟอร์มสมัคร -->
+                <div id="joinSection" class="bg-blue-50 p-4 rounded-xl mb-6 border border-blue-100">
+                    <h3 class="font-bold text-brandBlue mb-3">ลงทะเบียนเข้าชุมนุม</h3>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input type="text" id="studentNameInput" placeholder="กรอก ชื่อ - นามสกุล" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brandBlue focus:ring-2 focus:ring-blue-200">
+                        <button onclick="submitJoinClub()" class="bg-brandPink hover:bg-pink-600 text-white px-5 py-2 rounded-lg transition shadow font-medium whitespace-nowrap">สมัครเลย</button>
+                    </div>
+                </div>
+
+                <!-- รายชื่อนักเรียน -->
+                <div>
+                    <h3 class="font-bold text-gray-800 mb-3 bg-gray-100 p-2 rounded-lg">
+                        <i class="fas fa-list-ul text-gray-500"></i> รายชื่อนักเรียนที่สมัครแล้ว (<span id="studentCount">0</span> คน)
+                    </h3>
+                    <ul id="studentList" class="list-decimal list-inside text-gray-700 space-y-2 pl-2">
+                        <!-- Student list here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Script Logic -->
     <script>
-        // 🛑 นำ URL ของ Google Apps Script ที่ Deploy เสร็จแล้วมาใส่ตรงนี้
-        // หากยังไม่มี จะทำงานในโหมดจำลอง (Mock Data) อัตโนมัติเพื่อให้เห็นหน้าตา UI
+        // 🛑 นำ URL ของ Google Apps Script มาใส่ตรงนี้
         const GAS_URL = "https://script.google.com/macros/s/AKfycby_fxPWW_UxsRDxzSgnJg81ydujTx1Yu7dvcNxPasHFxGQcvh6kV7iMA4MsYcAaRD_p/exec"; 
         const ADMIN_PASSWORD = "112233";
 
         let clubsData = [];
         let isAdmin = false;
+        let currentViewClubId = null;
 
-        // ข้อมูลจำลองสำหรับแสดงตัวอย่าง
+        // ข้อมูลจำลองสำหรับแสดงตัวอย่าง (กรณีไม่มี GAS_URL)
         const mockData = [
-            { id: "1", name: "ชุมนุมดนตรีสากล", teachers: "ครูวิทวัส, ครูปรีชา", quota: 30, enrolled: 12 },
-            { id: "2", name: "ชุมนุม E-Sports", teachers: "ครูเอกภพ", quota: 20, enrolled: 20 },
-            { id: "3", name: "ชุมนุมศิลปะประดิษฐ์", teachers: "ครูสมศรี, ครูนงนุช", quota: 25, enrolled: 23 },
-            { id: "4", name: "ชุมนุมถ่ายภาพ", teachers: "ครูสุชาติ", quota: 15, enrolled: 5 }
+            { id: "1", name: "ชุมนุมดนตรีสากล", teachers: "ครูวิทวัส, ครูปรีชา", quota: 30, enrolled: 2, students: ["ด.ช.สมชาย รักเรียน", "ด.ญ.สมหญิง ใจดี"] },
+            { id: "2", name: "ชุมนุม E-Sports", teachers: "ครูเอกภพ", quota: 20, enrolled: 20, students: Array.from({length: 20}, (_, i) => `นักเรียนคนที่ ${i+1}`) },
+            { id: "3", name: "ชุมนุมศิลปะประดิษฐ์", teachers: "ครูสมศรี, ครูนงนุช", quota: 25, enrolled: 5, students: ["ด.ญ.มานี มีตา", "ด.ช.มานะ ขยัน", "ด.ญ.ชูใจ ดีใจ", "ด.ช.ปิติ รักษา", "ด.ญ.วีระ กล้าหาญ"] }
         ];
 
-        window.onload = () => {
-            fetchClubs();
-        };
+        window.onload = () => { fetchClubs(); };
 
         function showLoading(show) {
             document.getElementById('loading').style.display = show ? 'flex' : 'none';
@@ -142,9 +174,8 @@
         async function fetchClubs() {
             showLoading(true);
             if (!GAS_URL) {
-                // ใช้ข้อมูลจำลอง
                 setTimeout(() => {
-                    clubsData = [...mockData];
+                    clubsData = JSON.parse(JSON.stringify(mockData)); // Clone mock
                     renderClubs();
                     showLoading(false);
                 }, 800);
@@ -180,12 +211,14 @@
                 const isFull = club.enrolled >= club.quota;
                 const remaining = club.quota - club.enrolled;
                 
-                // การกำหนดสี
                 const borderColor = isFull ? 'border-red-500' : 'border-green-500';
                 const bgColor = isFull ? 'bg-red-50' : 'bg-white';
                 const statusBg = isFull ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
                 const statusText = isFull ? 'text-red-600' : 'text-green-600';
                 const statusLabel = isFull ? 'เต็ม' : 'ว่าง';
+                
+                // สำหรับนักเรียน ให้คลิกการ์ดได้
+                const cardInteractiveClass = !isAdmin ? 'cursor-pointer hover:scale-[1.02] transform transition duration-300' : '';
 
                 let adminButtons = '';
                 if (isAdmin) {
@@ -198,10 +231,10 @@
                 }
 
                 const cardHTML = `
-                    <div class="rounded-2xl border-l-8 ${borderColor} ${bgColor} shadow-md hover:shadow-lg transition-shadow duration-300 p-6 flex flex-col justify-between">
+                    <div onclick="if(!isAdmin) openStudentModal('${club.id}')" class="rounded-2xl border-l-8 ${borderColor} ${bgColor} shadow-md hover:shadow-lg p-6 flex flex-col justify-between ${cardInteractiveClass}">
                         <div>
                             <h2 class="text-xl font-bold text-gray-800 mb-2">${club.name}</h2>
-                            <p class="text-gray-600 text-sm mb-1"><i class="fas fa-chalkboard-teacher text-brandBlue w-5"></i> ครูผู้ดูแล: <span class="font-medium">${club.teachers}</span></p>
+                            <p class="text-gray-600 text-sm mb-1 truncate"><i class="fas fa-chalkboard-teacher text-brandBlue w-5"></i> ครู: <span class="font-medium">${club.teachers}</span></p>
                             <p class="text-gray-600 text-sm"><i class="fas fa-user-group text-brandPink w-5"></i> รับ: ${club.quota} คน</p>
                         </div>
                         
@@ -218,21 +251,129 @@
             });
         }
 
+        // --- ส่วนการจัดการโหมดนักเรียน (Student View) ---
+        function openStudentModal(id) {
+            const club = clubsData.find(c => c.id === id);
+            if (!club) return;
+            currentViewClubId = id;
+
+            document.getElementById('studentModalTitle').innerText = club.name;
+            document.getElementById('studentModalTeachers').innerText = club.teachers;
+
+            const isFull = club.enrolled >= club.quota;
+            document.getElementById('studentModalStatus').innerHTML = isFull ?
+                `<span class="text-red-600 font-bold">เต็ม (${club.enrolled}/${club.quota})</span>` :
+                `<span class="text-green-600 font-bold">ยังว่างอยู่ (${club.enrolled}/${club.quota})</span>`;
+
+            // แสดงรายชื่อ
+            const listContainer = document.getElementById('studentList');
+            listContainer.innerHTML = '';
+            const students = club.students || [];
+            
+            if (students.length > 0) {
+                students.forEach(std => {
+                    listContainer.innerHTML += `<li class="border-b border-gray-100 pb-1">${std}</li>`;
+                });
+                document.getElementById('studentCount').innerText = students.length;
+            } else {
+                listContainer.innerHTML = '<li class="text-gray-400 italic list-none">-- ยังไม่มีผู้สมัคร --</li>';
+                document.getElementById('studentCount').innerText = '0';
+            }
+
+            // ซ่อน/แสดง ฟอร์มสมัคร
+            const joinSection = document.getElementById('joinSection');
+            if (isFull) {
+                joinSection.classList.add('hidden');
+            } else {
+                joinSection.classList.remove('hidden');
+                document.getElementById('studentNameInput').value = '';
+            }
+
+            document.getElementById('studentModal').classList.remove('hidden');
+        }
+
+        function closeStudentModal() {
+            document.getElementById('studentModal').classList.add('hidden');
+            currentViewClubId = null;
+        }
+
+        async function submitJoinClub() {
+            const studentName = document.getElementById('studentNameInput').value.trim();
+            if (!studentName) {
+                alert('กรุณากรอกชื่อ-นามสกุล');
+                return;
+            }
+
+            // ในโหมดจำลอง (Mock Data)
+            if (!GAS_URL) {
+                // เช็คว่าชื่อซ้ำกับชุมนุมไหนเลยหรือไม่
+                const alreadyJoined = clubsData.some(c => c.students && c.students.includes(studentName));
+                if (alreadyJoined) {
+                    const joinedClub = clubsData.find(c => c.students && c.students.includes(studentName));
+                    alert(`ท่านได้ลงทะเบียนชุมนุม "${joinedClub.name}" ไปแล้ว`);
+                    return;
+                }
+
+                const club = clubsData.find(c => c.id === currentViewClubId);
+                if(club.enrolled >= club.quota) {
+                    alert('ชุมนุมนี้เต็มแล้ว ไม่สามารถสมัครได้');
+                    return;
+                }
+
+                club.students = club.students || [];
+                club.students.push(studentName);
+                club.enrolled++;
+                renderClubs();
+                openStudentModal(currentViewClubId); // รีเฟรชหน้าต่าง
+                alert('ลงทะเบียนสำเร็จ (ทดสอบในโหมดจำลอง)');
+                return;
+            }
+
+            // บันทึกจริง (GAS)
+            closeStudentModal();
+            showLoading(true);
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('action', 'join');
+                formData.append('clubId', currentViewClubId);
+                formData.append('studentName', studentName);
+
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    alert(result.message);
+                    await fetchClubs(); // ดึงข้อมูลใหม่เพื่ออัปเดตหน้าจอ
+                } else {
+                    alert('ไม่สามารถสมัครได้: ' + result.message);
+                    showLoading(false);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่');
+                showLoading(false);
+            }
+        }
+
+        // --- ส่วนการจัดการระบบแอดมิน (Admin Mode) ---
         function toggleAdminMode() {
             if (isAdmin) {
-                // Logout
                 isAdmin = false;
                 document.getElementById('adminLoginBtn').classList.remove('hidden');
                 document.getElementById('addClubBtn').classList.add('hidden');
+                document.getElementById('viewModeText').innerText = "คลิกที่การ์ดเพื่อดูรายชื่อหรือสมัครชุมนุม";
                 renderClubs();
             } else {
-                // Login
                 const pwd = prompt("กรุณาใส่รหัสผ่านเพื่อจัดการชุมนุม (112233):");
                 if (pwd === ADMIN_PASSWORD) {
                     isAdmin = true;
                     document.getElementById('adminLoginBtn').classList.add('hidden');
                     document.getElementById('addClubBtn').classList.remove('hidden');
-                    document.getElementById('testEnrollmentDiv').classList.remove('hidden'); // โชว์ช่องปรับจำนวนนักเรียนสำหรับทดสอบ
+                    document.getElementById('viewModeText').innerText = "โหมดจัดการข้อมูลชุมนุม (กำลังใช้งานในฐานะครู)";
                     renderClubs();
                 } else if (pwd !== null) {
                     alert("รหัสผ่านไม่ถูกต้อง!");
@@ -240,7 +381,7 @@
             }
         }
 
-        function openModal(isEdit = false) {
+        function openClubModal(isEdit = false) {
             document.getElementById('clubModal').classList.remove('hidden');
             if (!isEdit) {
                 document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> สร้างชุมนุมใหม่';
@@ -249,7 +390,7 @@
             }
         }
 
-        function closeModal() {
+        function closeClubModal() {
             document.getElementById('clubModal').classList.add('hidden');
         }
 
@@ -261,36 +402,35 @@
                 document.getElementById('clubName').value = club.name;
                 document.getElementById('clubTeachers').value = club.teachers;
                 document.getElementById('clubQuota').value = club.quota;
-                document.getElementById('clubEnrolled').value = club.enrolled;
-                openModal(true);
+                openClubModal(true);
             }
         }
 
-        async function handleFormSubmit(event) {
+        async function handleClubSubmit(event) {
             event.preventDefault();
             const id = document.getElementById('clubId').value;
             const data = {
                 name: document.getElementById('clubName').value,
                 teachers: document.getElementById('clubTeachers').value,
                 quota: document.getElementById('clubQuota').value,
-                enrolled: document.getElementById('clubEnrolled').value || 0,
-                password: ADMIN_PASSWORD // ส่งไปยืนยันฝั่ง Backend
+                password: ADMIN_PASSWORD 
             };
 
             const action = id ? 'update' : 'create';
             if (id) data.id = id;
 
-            closeModal();
+            closeClubModal();
             showLoading(true);
 
             if (!GAS_URL) {
-                // Mock Saving
                 setTimeout(() => {
                     if (id) {
                         const index = clubsData.findIndex(c => c.id === id);
                         clubsData[index] = { ...clubsData[index], ...data };
                     } else {
                         data.id = new Date().getTime().toString();
+                        data.enrolled = 0;
+                        data.students = [];
                         clubsData.push(data);
                     }
                     renderClubs();
@@ -300,7 +440,6 @@
                 return;
             }
 
-            // Real Saving to GAS
             try {
                 const formData = new URLSearchParams();
                 formData.append('action', action);
@@ -313,7 +452,7 @@
                 const result = await response.json();
                 
                 if (result.status === 'success') {
-                    fetchClubs(); // Reload data
+                    fetchClubs(); 
                 } else {
                     alert('เกิดข้อผิดพลาด: ' + result.message);
                     showLoading(false);
@@ -326,7 +465,7 @@
         }
 
         async function deleteClub(id) {
-            if (!confirm('คุณแน่ใจหรือไม่ที่จะลบชุมนุมนี้?')) return;
+            if (!confirm('คุณแน่ใจหรือไม่ที่จะลบชุมนุมนี้? (รายชื่อนักเรียนจะหายไปด้วย)')) return;
 
             showLoading(true);
 
