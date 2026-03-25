@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเลือกกิจกรรมชุมนุม ประจำปี 2569 โรงเรียนปากแพรกวิทยาคม</title>
+    <!-- Google Fonts: Kanit -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Kanit', 'sans-serif'],
+                    },
+                    colors: {
+                        brandBlue: '#3b82f6',
+                        brandPink: '#ec4899',
+                        bgLight: '#f0f9ff'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; }
+        .glass-effect { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #ec4899; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="min-h-screen pb-12">
+
+    <!-- Header Section -->
+    <header class="w-full bg-white shadow-sm pb-6">
+        <div class="max-w-6xl mx-auto px-4 pt-4">
+            <img src="https://pakprak.ac.th/wp-content/uploads/2021/10/logohomeArtboard-1-1536x392.png" 
+                 alt="โลโก้โรงเรียนปากแพรกวิทยาคม" 
+                 class="w-full max-w-4xl mx-auto rounded-xl shadow-md object-cover h-24 md:h-40 lg:h-48 border-2 border-pink-100">
+            
+            <h1 class="text-2xl md:text-3xl lg:text-4xl font-bold text-center mt-8 text-brandBlue drop-shadow-sm">
+                ระบบเลือกกิจกรรมชุมนุม ประจำปี 2569
+                <br>
+                <span class="text-brandPink text-xl md:text-2xl lg:text-3xl">โรงเรียนปากแพรกวิทยาคม</span>
+            </h1>
+        </div>
+    </header>
+
+    <!-- Controls Section -->
+    <div class="max-w-6xl mx-auto px-4 mt-8 flex justify-between items-center">
+        <div class="text-gray-600">
+            <i class="fas fa-info-circle text-brandBlue"></i> รายชื่อชุมนุมทั้งหมด
+        </div>
+        <div>
+            <button id="adminLoginBtn" onclick="toggleAdminMode()" class="bg-brandBlue hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
+                <i class="fas fa-lock"></i> จัดการชุมนุม (สำหรับครู)
+            </button>
+            <button id="addClubBtn" onclick="openModal()" class="hidden bg-brandPink hover:bg-pink-600 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
+                <i class="fas fa-plus"></i> สร้างชุมนุมใหม่
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="flex flex-col items-center justify-center py-20 hidden">
+        <div class="loader"></div>
+        <p class="mt-4 text-brandBlue font-medium">กำลังโหลดข้อมูล...</p>
+    </div>
+
+    <!-- Club Cards Grid -->
+    <div id="clubContainer" class="max-w-6xl mx-auto px-4 mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Cards will be injected here via JS -->
+    </div>
+
+    <!-- Modal Form (Create / Edit) -->
+    <div id="clubModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+            <div class="bg-gradient-to-r from-brandBlue to-brandPink p-4">
+                <h2 id="modalTitle" class="text-xl font-bold text-white"><i class="fas fa-edit"></i> สร้างชุมนุมใหม่</h2>
+            </div>
+            <form id="clubForm" onsubmit="handleFormSubmit(event)" class="p-6">
+                <input type="hidden" id="clubId">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">ชื่อชุมนุม</label>
+                    <input type="text" id="clubName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brandPink focus:ring-1 focus:ring-brandPink">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">ครูผู้ดูแล (คั่นด้วยลูกน้ำหากมีหลายคน)</label>
+                    <input type="text" id="clubTeachers" required placeholder="เช่น ครูสมชาย, ครูสมหญิง" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brandPink focus:ring-1 focus:ring-brandPink">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">จำนวนโควต้าที่รับ (คน)</label>
+                    <input type="number" id="clubQuota" required min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brandPink focus:ring-1 focus:ring-brandPink">
+                </div>
+                <!-- สำหรับการจำลองเพิ่มยอดนักเรียน (ทดสอบระบบ) -->
+                <div class="mb-6 hidden" id="testEnrollmentDiv">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">ทดสอบ: จำนวนนักเรียนที่สมัครแล้ว</label>
+                    <input type="number" id="clubEnrolled" min="0" value="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">ยกเลิก</button>
+                    <button type="submit" class="px-4 py-2 bg-brandPink text-white rounded-lg hover:bg-pink-600 transition shadow">บันทึกข้อมูล</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script Logic -->
+    <script>
+        // 🛑 นำ URL ของ Google Apps Script ที่ Deploy เสร็จแล้วมาใส่ตรงนี้
+        // หากยังไม่มี จะทำงานในโหมดจำลอง (Mock Data) อัตโนมัติเพื่อให้เห็นหน้าตา UI
+        const GAS_URL = ""; 
+        const ADMIN_PASSWORD = "112233";
+
+        let clubsData = [];
+        let isAdmin = false;
+
+        // ข้อมูลจำลองสำหรับแสดงตัวอย่าง
+        const mockData = [
+            { id: "1", name: "ชุมนุมดนตรีสากล", teachers: "ครูวิทวัส, ครูปรีชา", quota: 30, enrolled: 12 },
+            { id: "2", name: "ชุมนุม E-Sports", teachers: "ครูเอกภพ", quota: 20, enrolled: 20 },
+            { id: "3", name: "ชุมนุมศิลปะประดิษฐ์", teachers: "ครูสมศรี, ครูนงนุช", quota: 25, enrolled: 23 },
+            { id: "4", name: "ชุมนุมถ่ายภาพ", teachers: "ครูสุชาติ", quota: 15, enrolled: 5 }
+        ];
+
+        window.onload = () => {
+            fetchClubs();
+        };
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'flex' : 'none';
+            document.getElementById('clubContainer').style.display = show ? 'none' : 'grid';
+        }
+
+        async function fetchClubs() {
+            showLoading(true);
+            if (!GAS_URL) {
+                // ใช้ข้อมูลจำลอง
+                setTimeout(() => {
+                    clubsData = [...mockData];
+                    renderClubs();
+                    showLoading(false);
+                }, 800);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${GAS_URL}?action=read`);
+                const result = await response.json();
+                if (result.status === 'success') {
+                    clubsData = result.data;
+                    renderClubs();
+                } else {
+                    alert('เกิดข้อผิดพลาดในการดึงข้อมูล: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('ไม่สามารถเชื่อมต่อฐานข้อมูลได้');
+            }
+            showLoading(false);
+        }
+
+        function renderClubs() {
+            const container = document.getElementById('clubContainer');
+            container.innerHTML = '';
+
+            if (clubsData.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center text-gray-500 py-10">ยังไม่มีข้อมูลชุมนุมในระบบ</div>`;
+                return;
+            }
+
+            clubsData.forEach(club => {
+                const isFull = club.enrolled >= club.quota;
+                const remaining = club.quota - club.enrolled;
+                
+                // การกำหนดสี
+                const borderColor = isFull ? 'border-red-500' : 'border-green-500';
+                const bgColor = isFull ? 'bg-red-50' : 'bg-white';
+                const statusBg = isFull ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
+                const statusText = isFull ? 'text-red-600' : 'text-green-600';
+                const statusLabel = isFull ? 'เต็ม' : 'ว่าง';
+
+                let adminButtons = '';
+                if (isAdmin) {
+                    adminButtons = `
+                        <div class="mt-4 pt-4 border-t border-gray-200 flex justify-end gap-2">
+                            <button onclick="editClub('${club.id}')" class="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"><i class="fas fa-edit"></i> แก้ไข</button>
+                            <button onclick="deleteClub('${club.id}')" class="text-sm px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition"><i class="fas fa-trash"></i> ลบ</button>
+                        </div>
+                    `;
+                }
+
+                const cardHTML = `
+                    <div class="rounded-2xl border-l-8 ${borderColor} ${bgColor} shadow-md hover:shadow-lg transition-shadow duration-300 p-6 flex flex-col justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800 mb-2">${club.name}</h2>
+                            <p class="text-gray-600 text-sm mb-1"><i class="fas fa-chalkboard-teacher text-brandBlue w-5"></i> ครูผู้ดูแล: <span class="font-medium">${club.teachers}</span></p>
+                            <p class="text-gray-600 text-sm"><i class="fas fa-user-group text-brandPink w-5"></i> รับ: ${club.quota} คน</p>
+                        </div>
+                        
+                        <div class="mt-5 flex justify-between items-center bg-white/60 p-2 rounded-lg">
+                            <span class="text-sm px-3 py-1 rounded-full font-medium ${statusBg}">
+                                สมัครแล้ว ${club.enrolled} (เหลือ ${remaining < 0 ? 0 : remaining})
+                            </span>
+                            <span class="font-bold text-lg ${statusText}">${statusLabel}</span>
+                        </div>
+                        ${adminButtons}
+                    </div>
+                `;
+                container.innerHTML += cardHTML;
+            });
+        }
+
+        function toggleAdminMode() {
+            if (isAdmin) {
+                // Logout
+                isAdmin = false;
+                document.getElementById('adminLoginBtn').classList.remove('hidden');
+                document.getElementById('addClubBtn').classList.add('hidden');
+                renderClubs();
+            } else {
+                // Login
+                const pwd = prompt("กรุณาใส่รหัสผ่านเพื่อจัดการชุมนุม (112233):");
+                if (pwd === ADMIN_PASSWORD) {
+                    isAdmin = true;
+                    document.getElementById('adminLoginBtn').classList.add('hidden');
+                    document.getElementById('addClubBtn').classList.remove('hidden');
+                    document.getElementById('testEnrollmentDiv').classList.remove('hidden'); // โชว์ช่องปรับจำนวนนักเรียนสำหรับทดสอบ
+                    renderClubs();
+                } else if (pwd !== null) {
+                    alert("รหัสผ่านไม่ถูกต้อง!");
+                }
+            }
+        }
+
+        function openModal(isEdit = false) {
+            document.getElementById('clubModal').classList.remove('hidden');
+            if (!isEdit) {
+                document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> สร้างชุมนุมใหม่';
+                document.getElementById('clubForm').reset();
+                document.getElementById('clubId').value = '';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('clubModal').classList.add('hidden');
+        }
+
+        function editClub(id) {
+            const club = clubsData.find(c => c.id === id);
+            if (club) {
+                document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> แก้ไขข้อมูลชุมนุม';
+                document.getElementById('clubId').value = club.id;
+                document.getElementById('clubName').value = club.name;
+                document.getElementById('clubTeachers').value = club.teachers;
+                document.getElementById('clubQuota').value = club.quota;
+                document.getElementById('clubEnrolled').value = club.enrolled;
+                openModal(true);
+            }
+        }
+
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            const id = document.getElementById('clubId').value;
+            const data = {
+                name: document.getElementById('clubName').value,
+                teachers: document.getElementById('clubTeachers').value,
+                quota: document.getElementById('clubQuota').value,
+                enrolled: document.getElementById('clubEnrolled').value || 0,
+                password: ADMIN_PASSWORD // ส่งไปยืนยันฝั่ง Backend
+            };
+
+            const action = id ? 'update' : 'create';
+            if (id) data.id = id;
+
+            closeModal();
+            showLoading(true);
+
+            if (!GAS_URL) {
+                // Mock Saving
+                setTimeout(() => {
+                    if (id) {
+                        const index = clubsData.findIndex(c => c.id === id);
+                        clubsData[index] = { ...clubsData[index], ...data };
+                    } else {
+                        data.id = new Date().getTime().toString();
+                        clubsData.push(data);
+                    }
+                    renderClubs();
+                    showLoading(false);
+                    alert('บันทึกข้อมูลเรียบร้อย (โหมดจำลอง)');
+                }, 500);
+                return;
+            }
+
+            // Real Saving to GAS
+            try {
+                const formData = new URLSearchParams();
+                formData.append('action', action);
+                for (const key in data) formData.append(key, data[key]);
+
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    fetchClubs(); // Reload data
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + result.message);
+                    showLoading(false);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('ไม่สามารถเชื่อมต่อฐานข้อมูลได้');
+                showLoading(false);
+            }
+        }
+
+        async function deleteClub(id) {
+            if (!confirm('คุณแน่ใจหรือไม่ที่จะลบชุมนุมนี้?')) return;
+
+            showLoading(true);
+
+            if (!GAS_URL) {
+                setTimeout(() => {
+                    clubsData = clubsData.filter(c => c.id !== id);
+                    renderClubs();
+                    showLoading(false);
+                }, 500);
+                return;
+            }
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('action', 'delete');
+                formData.append('id', id);
+                formData.append('password', ADMIN_PASSWORD);
+
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    fetchClubs();
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + result.message);
+                    showLoading(false);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('ไม่สามารถเชื่อมต่อฐานข้อมูลได้');
+                showLoading(false);
+            }
+        }
+    </script>
+</body>
+</html>
