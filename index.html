@@ -209,8 +209,9 @@
         }
 
         function showLoading(show) {
-            document.getElementById('loading').style.display = show ? 'flex' : 'none';
-            document.getElementById('clubContainer').style.display = show ? 'none' : 'grid';
+            const spinner = document.getElementById('loadingSpinner');
+            if (show) spinner.classList.remove('hidden');
+            else spinner.classList.add('hidden');
         }
 
         async function fetchClubs() {
@@ -227,19 +228,28 @@
 
             try {
                 const response = await fetch(`${GAS_URL}?action=read`);
-                const result = await response.json();
-                if (result.status === 'success') {
-                    clubsData = result.data;
-                    renderClubs();
-                    updateTimestamp();
-                } else {
-                    alert('เกิดข้อผิดพลาดในการดึงข้อมูล: ' + result.message);
+                const text = await response.text(); // อ่านเป็น Text ดิบก่อนเพื่อดักจับ Error จาก Google
+                
+                try {
+                    const result = JSON.parse(text);
+                    if (result.status === 'success') {
+                        clubsData = result.data;
+                        renderClubs();
+                        updateTimestamp();
+                    } else {
+                        alert('เกิดข้อผิดพลาดในการดึงข้อมูล: ' + result.message);
+                    }
+                } catch (jsonError) {
+                    console.error("การตอบกลับไม่ใช่ JSON:", text);
+                    alert('ข้อมูลที่ได้ไม่ใช่ JSON \nกรุณาเช็คว่าตั้งค่าสิทธิ์ Web App เป็น "ทุกคน (Anyone)" หรือยัง');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('ไม่สามารถเชื่อมต่อฐานข้อมูลได้');
+                console.error('Network Error:', error);
+                alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบอินเทอร์เน็ต');
+            } finally {
+                // สำคัญมาก: ปิดหน้าโหลดเสมอ ไม่ว่าจะดึงข้อมูลสำเร็จหรือพังก็ตาม
+                showLoading(false); 
             }
-            showLoading(false);
         }
 
         function renderClubs() {
