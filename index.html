@@ -57,9 +57,10 @@
     </header>
 
     <!-- Controls Section -->
-    <div class="max-w-6xl mx-auto px-4 mt-8 flex justify-between items-center">
-        <div class="text-gray-600">
-            <i class="fas fa-info-circle text-brandBlue"></i> <span id="viewModeText">คลิกที่การ์ดเพื่อดูรายชื่อหรือสมัครชุมนุม</span>
+    <div class="max-w-6xl mx-auto px-4 mt-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div class="text-gray-600 flex flex-col">
+            <div><i class="fas fa-info-circle text-brandBlue"></i> <span id="viewModeText">คลิกที่การ์ดเพื่อดูรายชื่อหรือสมัครชุมนุม</span></div>
+            <span id="lastUpdateText" class="text-xs text-green-600 ml-5 mt-1 font-medium"><i class="fas fa-sync-alt"></i> อัปเดตข้อมูลล่าสุด: กำลังโหลด...</span>
         </div>
         <div>
             <button id="adminLoginBtn" onclick="toggleAdminMode()" class="bg-brandBlue hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
@@ -149,7 +150,7 @@
 
     <!-- Script Logic -->
     <script>
-        // 🛑 นำ URL ของ Google Apps Script มาใส่ตรงนี้
+        // 🛑 อัปเดต URL ของ Google Apps Script ใหม่แล้ว
         const GAS_URL = "https://script.google.com/macros/s/AKfycby_fxPWW_UxsRDxzSgnJg81ydujTx1Yu7dvcNxPasHFxGQcvh6kV7iMA4MsYcAaRD_p/exec"; 
         const ADMIN_PASSWORD = "112233";
 
@@ -164,7 +165,38 @@
             { id: "3", name: "ชุมนุมศิลปะประดิษฐ์", teachers: "ครูสมศรี, ครูนงนุช", quota: 25, enrolled: 5, students: ["ด.ญ.มานี มีตา", "ด.ช.มานะ ขยัน", "ด.ญ.ชูใจ ดีใจ", "ด.ช.ปิติ รักษา", "ด.ญ.วีระ กล้าหาญ"] }
         ];
 
-        window.onload = () => { fetchClubs(); };
+        window.onload = () => { 
+            fetchClubs(); 
+            // เริ่มการอัปเดตข้อมูลอัตโนมัติ (Real-time) ทุกๆ 15 วินาที
+            setInterval(silentFetchClubs, 15000);
+        };
+
+        function updateTimestamp() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('th-TH');
+            document.getElementById('lastUpdateText').innerHTML = `<i class="fas fa-sync-alt"></i> อัปเดตข้อมูลล่าสุด: ${timeStr} น.`;
+        }
+
+        async function silentFetchClubs() {
+            if (!GAS_URL) return; // ไม่ทำงานโหมดจำลอง
+            try {
+                const response = await fetch(`${GAS_URL}?action=read`);
+                const result = await response.json();
+                if (result.status === 'success') {
+                    clubsData = result.data;
+                    renderClubs(); // อัปเดตหน้าการ์ด
+                    updateTimestamp(); // อัปเดตเวลาแสดงผล
+
+                    // หากผู้ใช้กำลังเปิดหน้าต่างชุมนุมค้างไว้ ให้อัปเดตข้อมูลรายชื่อและยอดข้างในด้วย
+                    if (currentViewClubId && !document.getElementById('studentModal').classList.contains('hidden')) {
+                        const activeClub = clubsData.find(c => c.id === currentViewClubId);
+                        if (activeClub) refreshModalUI(activeClub);
+                    }
+                }
+            } catch (error) {
+                console.error('Silent update error:', error);
+            }
+        }
 
         function showLoading(show) {
             document.getElementById('loading').style.display = show ? 'flex' : 'none';
@@ -177,6 +209,7 @@
                 setTimeout(() => {
                     clubsData = JSON.parse(JSON.stringify(mockData)); // Clone mock
                     renderClubs();
+                    updateTimestamp();
                     showLoading(false);
                 }, 800);
                 return;
@@ -188,6 +221,7 @@
                 if (result.status === 'success') {
                     clubsData = result.data;
                     renderClubs();
+                    updateTimestamp();
                 } else {
                     alert('เกิดข้อผิดพลาดในการดึงข้อมูล: ' + result.message);
                 }
@@ -257,6 +291,20 @@
             if (!club) return;
             currentViewClubId = id;
 
+            // เรียกใช้ฟังก์ชันอัปเดต UI ภายใน Modal
+            refreshModalUI(club);
+
+            // เคลียร์ช่องกรอกชื่อเฉพาะตอนเปิดหน้าต่างใหม่
+            const joinSection = document.getElementById('joinSection');
+            if (club.enrolled < club.quota) {
+                document.getElementById('studentNameInput').value = '';
+            }
+
+            document.getElementById('studentModal').classList.remove('hidden');
+        }
+
+        // แยกส่วนจัดการหน้าต่าง Modal เพื่อให้ระบบ Auto-refresh เรียกใช้ได้
+        function refreshModalUI(club) {
             document.getElementById('studentModalTitle').innerText = club.name;
             document.getElementById('studentModalTeachers').innerText = club.teachers;
 
@@ -286,10 +334,7 @@
                 joinSection.classList.add('hidden');
             } else {
                 joinSection.classList.remove('hidden');
-                document.getElementById('studentNameInput').value = '';
             }
-
-            document.getElementById('studentModal').classList.remove('hidden');
         }
 
         function closeStudentModal() {
@@ -304,6 +349,9 @@
                 return;
             }
 
+            // ⚠️ บักถูกแก้ที่นี่: เก็บค่า Target Club ID ไว้ก่อน เพราะคำสั่ง closeStudentModal จะรีเซ็ตค่าเป็น null
+            const targetClubId = currentViewClubId;
+
             // ในโหมดจำลอง (Mock Data)
             if (!GAS_URL) {
                 // เช็คว่าชื่อซ้ำกับชุมนุมไหนเลยหรือไม่
@@ -314,7 +362,7 @@
                     return;
                 }
 
-                const club = clubsData.find(c => c.id === currentViewClubId);
+                const club = clubsData.find(c => c.id === targetClubId);
                 if(club.enrolled >= club.quota) {
                     alert('ชุมนุมนี้เต็มแล้ว ไม่สามารถสมัครได้');
                     return;
@@ -324,19 +372,19 @@
                 club.students.push(studentName);
                 club.enrolled++;
                 renderClubs();
-                openStudentModal(currentViewClubId); // รีเฟรชหน้าต่าง
+                openStudentModal(targetClubId); // รีเฟรชหน้าต่าง
                 alert('ลงทะเบียนสำเร็จ (ทดสอบในโหมดจำลอง)');
                 return;
             }
 
             // บันทึกจริง (GAS)
-            closeStudentModal();
+            closeStudentModal(); // ปิดหน้าต่างได้ปลอดภัยแล้วเพราะเราเก็บ targetClubId ไว้แล้ว
             showLoading(true);
 
             try {
                 const formData = new URLSearchParams();
                 formData.append('action', 'join');
-                formData.append('clubId', currentViewClubId);
+                formData.append('clubId', targetClubId); // ส่งค่า ID ที่เก็บไว้แทน
                 formData.append('studentName', studentName);
 
                 const response = await fetch(GAS_URL, {
