@@ -563,6 +563,34 @@
                     showLoading(false);
                 }, 500);
                 return;
+            }
+
+            // บันทึกการลบจริง (GAS)
+            try {
+                const formData = new URLSearchParams();
+                formData.append('action', 'delete');
+                formData.append('id', id);
+                formData.append('password', ADMIN_PASSWORD);
+
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    fetchClubs();
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + result.message);
+                    showLoading(false);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('ไม่สามารถลบข้อมูลได้');
+                showLoading(false);
+            }
+        }
+
         // --- ส่วน Export เป็น CSV / Excel ---
         function downloadCSV(csvContent, filename) {
             // ใส่ BOM (\uFEFF) เพื่อให้ Excel อ่านภาษาไทย (UTF-8) ได้ถูกต้อง
