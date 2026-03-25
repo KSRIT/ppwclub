@@ -81,8 +81,8 @@
         </div>
     </div>
 
-    <!-- Loading Spinner -->
-    <div id="loading" class="flex flex-col items-center justify-center py-20 hidden">
+    <!-- Loading Spinner (แก้ไข ID ให้ตรงกับ Javascript) -->
+    <div id="loadingSpinner" class="flex flex-col items-center justify-center py-20 hidden">
         <div class="loader"></div>
         <p class="mt-4 text-brandBlue font-medium">กำลังโหลดข้อมูล...</p>
     </div>
@@ -210,8 +210,13 @@
 
         function showLoading(show) {
             const spinner = document.getElementById('loadingSpinner');
-            if (show) spinner.classList.remove('hidden');
-            else spinner.classList.add('hidden');
+            if (!spinner) return; // ป้องกัน Error หากหา Element ไม่เจอ
+            
+            if (show) {
+                spinner.classList.remove('hidden');
+            } else {
+                spinner.classList.add('hidden');
+            }
         }
 
         async function fetchClubs() {
@@ -254,6 +259,8 @@
 
         function renderClubs() {
             const container = document.getElementById('clubContainer');
+            if (!container) return;
+            
             container.innerHTML = '';
 
             if (clubsData.length === 0) {
@@ -316,7 +323,6 @@
             refreshModalUI(club);
 
             // เคลียร์ช่องกรอกชื่อและชั้นเฉพาะตอนเปิดหน้าต่างใหม่
-            const joinSection = document.getElementById('joinSection');
             if (club.enrolled < club.quota) {
                 document.getElementById('studentNameInput').value = '';
                 document.getElementById('studentClassInput').value = '';
@@ -341,7 +347,7 @@
             const students = club.students || [];
             
             if (students.length > 0) {
-                students.forEach((std, index) => {
+                students.forEach((std) => {
                     // รองรับทั้งข้อมูลแบบเก่า (string) และแบบใหม่ (object ที่มีชื่อและชั้น)
                     const name = typeof std === 'object' ? std.name : std;
                     const className = typeof std === 'object' ? std.className : '-';
@@ -383,7 +389,7 @@
                 return;
             }
 
-            // ⚠️ บักถูกแก้ที่นี่: เก็บค่า Target Club ID ไว้ก่อน เพราะคำสั่ง closeStudentModal จะรีเซ็ตค่าเป็น null
+            // เก็บค่า Target Club ID ไว้ก่อน เพราะคำสั่ง closeStudentModal จะรีเซ็ตค่าเป็น null
             const targetClubId = currentViewClubId;
 
             // ในโหมดจำลอง (Mock Data)
