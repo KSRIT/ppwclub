@@ -162,7 +162,7 @@
     <script>
         // 🛑 อัปเดต URL ของ Google Apps Script
         const GAS_URL = "https://script.google.com/macros/s/AKfycby_fxPWW_UxsRDxzSgnJg81ydujTx1Yu7dvcNxPasHFxGQcvh6kV7iMA4MsYcAaRD_p/exec"; 
-        const ADMIN_PASSWORD = "112233";
+        const ADMIN_PASSWORD = "123321";
 
         let clubsData = [];
         let displayOrder = []; // ตัวแปรสำหรับเก็บลำดับสุ่ม 
@@ -296,13 +296,20 @@
                 const isFull = club.enrolled >= club.quota;
                 const remaining = club.quota - club.enrolled;
                 
-                const borderColor = isFull ? 'border-red-500' : 'border-green-500';
-                const bgColor = isFull ? 'bg-red-50' : 'bg-white';
-                const statusBg = isFull ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
-                const statusText = isFull ? 'text-red-600' : 'text-green-600';
+                // คำนวณเปอร์เซ็นต์ผู้สมัครเทียบกับโควต้า (สัดส่วน 0.0 ถึง 1.0)
+                const percentage = club.quota > 0 ? Math.min(club.enrolled / club.quota, 1) : 1;
+                
+                // ใช้หลักการไล่สี HSL: วงล้อสีจาก 120 (เขียว) ไปจนถึง 0 (แดง)
+                const hue = Math.floor(120 * (1 - percentage));
+                
+                // สร้างรหัสสีจาก Hue ที่คำนวณได้
+                const mainColor = `hsl(${hue}, 80%, 45%)`;   // สีขอบการ์ดและตัวหนังสือ (สีเข้ม)
+                const bgColor = `hsl(${hue}, 80%, 97%)`;     // สีพื้นหลังการ์ด (สีอ่อนมาก)
+                const lightBgColor = `hsl(${hue}, 80%, 90%)`;// สีพื้นหลังป้ายสถานะ (สีอ่อน)
+
                 const statusLabel = isFull ? 'เต็ม' : 'ว่าง';
                 
-                // ให้สามารถคลิกได้เสมอเพื่อดูรายชื่อ (ถ้าเป็นนักเรียนสมัคร ถ้าเป็นครูดูเฉยๆ หรือลบรายชื่อ)
+                // ให้สามารถคลิกได้เสมอเพื่อดูรายชื่อ
                 const cardInteractiveClass = 'cursor-pointer hover:scale-[1.02] transform transition duration-300';
 
                 let adminButtons = '';
@@ -318,7 +325,9 @@
                 }
 
                 const cardHTML = `
-                    <div onclick="openStudentModal('${club.id}')" class="rounded-2xl border-l-8 ${borderColor} ${bgColor} shadow-md hover:shadow-lg p-6 flex flex-col justify-between ${cardInteractiveClass}">
+                    <div onclick="openStudentModal('${club.id}')" 
+                         class="rounded-2xl border-l-8 shadow-md hover:shadow-lg p-6 flex flex-col justify-between ${cardInteractiveClass}"
+                         style="border-left-color: ${mainColor}; background-color: ${bgColor};">
                         <div>
                             <h2 class="text-xl font-bold text-gray-800 mb-2">${club.name}</h2>
                             <p class="text-gray-600 text-sm mb-1 truncate"><i class="fas fa-chalkboard-teacher text-brandBlue w-5"></i> ครู: <span class="font-medium">${club.teachers}</span></p>
@@ -326,10 +335,10 @@
                         </div>
                         
                         <div class="mt-5 flex justify-between items-center bg-white/60 p-2 rounded-lg">
-                            <span class="text-sm px-3 py-1 rounded-full font-medium ${statusBg}">
+                            <span class="text-sm px-3 py-1 rounded-full font-medium" style="background-color: ${lightBgColor}; color: ${mainColor};">
                                 สมัครแล้ว ${club.enrolled} (เหลือ ${remaining < 0 ? 0 : remaining})
                             </span>
-                            <span class="font-bold text-lg ${statusText}">${statusLabel}</span>
+                            <span class="font-bold text-lg" style="color: ${mainColor};">${statusLabel}</span>
                         </div>
                         ${adminButtons}
                     </div>
@@ -556,7 +565,7 @@
                 
                 renderClubs();
             } else {
-                const pwd = prompt("กรุณาใส่รหัสผ่านเพื่อจัดการชุมนุม :");
+                const pwd = prompt("กรุณาใส่รหัสผ่านเพื่อจัดการชุมนุม (123321):");
                 if (pwd === ADMIN_PASSWORD) {
                     isAdmin = true;
                     document.getElementById('adminLoginBtn').classList.add('hidden');
