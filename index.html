@@ -130,7 +130,8 @@
                 <div id="joinSection" class="bg-blue-50 p-4 rounded-xl mb-6 border border-blue-100">
                     <h3 class="font-bold text-brandBlue mb-3">ลงทะเบียนเข้าชุมนุม</h3>
                     <div class="flex flex-col sm:flex-row gap-2">
-                        <input type="text" id="studentNameInput" placeholder="กรอก ชื่อ - นามสกุล" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brandBlue focus:ring-2 focus:ring-blue-200">
+                        <input type="text" id="studentNameInput" placeholder="กรอก ชื่อ - นามสกุล" class="flex-[2] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brandBlue focus:ring-2 focus:ring-blue-200">
+                        <input type="text" id="studentClassInput" placeholder="ชั้น (เช่น ม.1/1)" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brandBlue focus:ring-2 focus:ring-blue-200">
                         <button onclick="submitJoinClub()" class="bg-brandPink hover:bg-pink-600 text-white px-5 py-2 rounded-lg transition shadow font-medium whitespace-nowrap">สมัครเลย</button>
                     </div>
                 </div>
@@ -160,9 +161,9 @@
 
         // ข้อมูลจำลองสำหรับแสดงตัวอย่าง (กรณีไม่มี GAS_URL)
         const mockData = [
-            { id: "1", name: "ชุมนุมดนตรีสากล", teachers: "ครูวิทวัส, ครูปรีชา", quota: 30, enrolled: 2, students: ["ด.ช.สมชาย รักเรียน", "ด.ญ.สมหญิง ใจดี"] },
-            { id: "2", name: "ชุมนุม E-Sports", teachers: "ครูเอกภพ", quota: 20, enrolled: 20, students: Array.from({length: 20}, (_, i) => `นักเรียนคนที่ ${i+1}`) },
-            { id: "3", name: "ชุมนุมศิลปะประดิษฐ์", teachers: "ครูสมศรี, ครูนงนุช", quota: 25, enrolled: 5, students: ["ด.ญ.มานี มีตา", "ด.ช.มานะ ขยัน", "ด.ญ.ชูใจ ดีใจ", "ด.ช.ปิติ รักษา", "ด.ญ.วีระ กล้าหาญ"] }
+            { id: "1", name: "ชุมนุมดนตรีสากล", teachers: "ครูวิทวัส, ครูปรีชา", quota: 30, enrolled: 2, students: [{name: "ด.ช.สมชาย รักเรียน", className: "ม.1/1"}, {name: "ด.ญ.สมหญิง ใจดี", className: "ม.2/3"}] },
+            { id: "2", name: "ชุมนุม E-Sports", teachers: "ครูเอกภพ", quota: 20, enrolled: 2, students: [{name: "ด.ช.เกมเมอร์ ตัวตึง", className: "ม.3/2"}, {name: "ด.ช.เทพทรู เติมหนัก", className: "ม.4/1"}] },
+            { id: "3", name: "ชุมนุมศิลปะประดิษฐ์", teachers: "ครูสมศรี, ครูนงนุช", quota: 25, enrolled: 2, students: [{name: "ด.ญ.มานี มีตา", className: "ม.1/2"}, {name: "ด.ช.มานะ ขยัน", className: "ม.1/2"}] }
         ];
 
         window.onload = () => { 
@@ -294,10 +295,11 @@
             // เรียกใช้ฟังก์ชันอัปเดต UI ภายใน Modal
             refreshModalUI(club);
 
-            // เคลียร์ช่องกรอกชื่อเฉพาะตอนเปิดหน้าต่างใหม่
+            // เคลียร์ช่องกรอกชื่อและชั้นเฉพาะตอนเปิดหน้าต่างใหม่
             const joinSection = document.getElementById('joinSection');
             if (club.enrolled < club.quota) {
                 document.getElementById('studentNameInput').value = '';
+                document.getElementById('studentClassInput').value = '';
             }
 
             document.getElementById('studentModal').classList.remove('hidden');
@@ -319,8 +321,18 @@
             const students = club.students || [];
             
             if (students.length > 0) {
-                students.forEach(std => {
-                    listContainer.innerHTML += `<li class="border-b border-gray-100 pb-1">${std}</li>`;
+                students.forEach((std, index) => {
+                    // รองรับทั้งข้อมูลแบบเก่า (string) และแบบใหม่ (object ที่มีชื่อและชั้น)
+                    const name = typeof std === 'object' ? std.name : std;
+                    const className = typeof std === 'object' ? std.className : '-';
+                    
+                    listContainer.innerHTML += `
+                        <li class="border-b border-gray-100 pb-2 mt-1">
+                            <div class="flex justify-between items-center w-full">
+                                <span>${name}</span>
+                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium whitespace-nowrap">ชั้น ${className}</span>
+                            </div>
+                        </li>`;
                 });
                 document.getElementById('studentCount').innerText = students.length;
             } else {
@@ -344,8 +356,10 @@
 
         async function submitJoinClub() {
             const studentName = document.getElementById('studentNameInput').value.trim();
-            if (!studentName) {
-                alert('กรุณากรอกชื่อ-นามสกุล');
+            const studentClass = document.getElementById('studentClassInput').value.trim();
+            
+            if (!studentName || !studentClass) {
+                alert('กรุณากรอกชื่อ-นามสกุล และ ชั้นเรียน ให้ครบถ้วน');
                 return;
             }
 
@@ -355,9 +369,9 @@
             // ในโหมดจำลอง (Mock Data)
             if (!GAS_URL) {
                 // เช็คว่าชื่อซ้ำกับชุมนุมไหนเลยหรือไม่
-                const alreadyJoined = clubsData.some(c => c.students && c.students.includes(studentName));
+                const alreadyJoined = clubsData.some(c => c.students && c.students.some(s => s.name === studentName));
                 if (alreadyJoined) {
-                    const joinedClub = clubsData.find(c => c.students && c.students.includes(studentName));
+                    const joinedClub = clubsData.find(c => c.students && c.students.some(s => s.name === studentName));
                     alert(`ท่านได้ลงทะเบียนชุมนุม "${joinedClub.name}" ไปแล้ว`);
                     return;
                 }
@@ -369,7 +383,7 @@
                 }
 
                 club.students = club.students || [];
-                club.students.push(studentName);
+                club.students.push({name: studentName, className: studentClass});
                 club.enrolled++;
                 renderClubs();
                 openStudentModal(targetClubId); // รีเฟรชหน้าต่าง
@@ -386,6 +400,7 @@
                 formData.append('action', 'join');
                 formData.append('clubId', targetClubId); // ส่งค่า ID ที่เก็บไว้แทน
                 formData.append('studentName', studentName);
+                formData.append('studentClass', studentClass); // ส่งข้อมูล "ชั้น" ไปด้วย
 
                 const response = await fetch(GAS_URL, {
                     method: 'POST',
