@@ -11,6 +11,9 @@
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- เพิ่ม SheetJS สำหรับสร้างไฟล์ Excel หลาย Sheet -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -69,7 +72,7 @@
             <button id="addClubBtn" onclick="openClubModal()" class="hidden bg-brandPink hover:bg-pink-600 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
                 <i class="fas fa-plus"></i> สร้างชุมนุมใหม่
             </button>
-            <button id="exportAllBtn" onclick="exportAllClubsToCSV()" class="hidden bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
+            <button id="exportAllBtn" onclick="exportAllClubsToExcel()" class="hidden bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
                 <i class="fas fa-file-excel"></i> Export ทั้งหมด
             </button>
             <button id="logoutBtn" onclick="toggleAdminMode()" class="hidden bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg shadow transition duration-300 flex items-center gap-2">
@@ -550,34 +553,7 @@
                     showLoading(false);
                 }, 500);
                 return;
-            }
-
-            try {
-                const formData = new URLSearchParams();
-                formData.append('action', 'delete');
-                formData.append('id', id);
-                formData.append('password', ADMIN_PASSWORD);
-
-                const response = await fetch(GAS_URL, {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    fetchClubs();
-                } else {
-                    alert('เกิดข้อผิดพลาด: ' + result.message);
-                    showLoading(false);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('ไม่สามารถเชื่อมต่อฐานข้อมูลได้');
-                showLoading(false);
-            }
-        }
-
-        // --- ส่วน Export เป็น CSV ---
+        // --- ส่วน Export เป็น CSV / Excel ---
         function downloadCSV(csvContent, filename) {
             // ใส่ BOM (\uFEFF) เพื่อให้ Excel อ่านภาษาไทย (UTF-8) ได้ถูกต้อง
             const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -591,27 +567,54 @@
             document.body.removeChild(link);
         }
 
-        function exportAllClubsToCSV() {
+        function exportAllClubsToExcel() {
             if (!clubsData || clubsData.length === 0) {
                 alert("ไม่มีข้อมูลให้ Export");
                 return;
             }
             
-            let csvContent = "ชื่อชุมนุม,ครูที่ปรึกษา,ลำดับ,ชื่อ-นามสกุล,ชั้น\n";
+            // สร้าง Workbook ใหม่
+            const wb = XLSX.utils.book_new();
 
             clubsData.forEach(club => {
+                // เตรียมข้อมูลแถวและคอลัมน์สำหรับแต่ละชีต
+                const ws_data = [
+                    ["ชื่อชุมนุม:", club.name],
+                    ["ครูที่ปรึกษา:", club.teachers],
+                    ["จำนวนนักเรียนที่รับได้:", club.quota],
+                    ["ลำดับ", "ชื่อ-นามสกุล", "ชั้น"]
+                ];
+
                 if (club.students && club.students.length > 0) {
                     club.students.forEach((std, index) => {
                         const name = typeof std === 'object' ? std.name : std;
                         const className = typeof std === 'object' ? std.className : '-';
-                        csvContent += `"${club.name}","${club.teachers}",${index + 1},"${name}","${className}"\n`;
+                        ws_data.push([index + 1, name, className]);
                     });
                 } else {
-                    csvContent += `"${club.name}","${club.teachers}",-,"ไม่มีผู้สมัคร","-"\n`;
+                    ws_data.push(["-", "ไม่มีผู้สมัคร", "-"]);
                 }
+
+                // สร้าง Worksheet จากข้อมูล
+                const ws = XLSX.utils.aoa_to_sheet(ws_data);
+                
+                // ปรับความกว้างคอลัมน์ให้สวยงาม (15, 30, 15)
+                ws['!cols'] = [{wch: 15}, {wch: 30}, {wch: 15}];
+
+                // ตั้งชื่อชีต (Excel จำกัดชื่อชีตไม่เกิน 31 ตัวอักษร และห้ามมีอักขระพิเศษบางตัว)
+                let safeSheetName = club.name.replace(/[\\/:*?"<>|\[\]]/g, '').substring(0, 31);
+                
+                // ป้องกันชื่อชีตซ้ำกัน (ถ้าตั้งชื่อชุมนุมยาวเกิน 31 ตัวอักษรแล้วโดนตัดจนซ้ำกัน)
+                if(wb.SheetNames.includes(safeSheetName)) {
+                    safeSheetName = safeSheetName.substring(0, 27) + "_" + Math.floor(Math.random() * 100);
+                }
+
+                // เพิ่มชีตลงใน Workbook
+                XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
             });
 
-            downloadCSV(csvContent, "รายชื่อชุมนุมทั้งหมด_2569.csv");
+            // สร้างและดาวน์โหลดไฟล์ Excel
+            XLSX.writeFile(wb, "รายชื่อชุมนุมทั้งหมด_2569.xlsx");
         }
 
         function exportClubToCSV(clubId) {
